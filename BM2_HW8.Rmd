@@ -1,0 +1,65 @@
+---
+title: "BM2_HW8"
+author: "Yixiao Sun"
+date: "2024-04-11"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(summarytools)
+library(ggplot2) 
+library(bayesQR)
+library(readxl)
+library(gee)
+health_data <- read_excel("~/Desktop/P8130_Biostatistical Method/BM2_HW8/HW8-HEALTH.xlsx")
+View(health_data)
+dim(health_data)
+head(health_data)
+
+health_data$HEALTH2<-as.numeric(health_data$HEALTH == "Good")
+health_data$AGEGROUP<-as.factor(health_data$AGEGROUP)
+health_data2 <- subset(health_data,health_data$TIME == "1")
+```
+a)
+```{r}
+logit.fit <- glm(formula = HEALTH2 ~ TXT,family = binomial,data = health_data2)
+summary(logit.fit)
+```
+# Based on the results of the logistic model, we conclude that the TXT are not significant for having a p_value of 0.486, which is bigger than alpha 0.05, so we do not reject the null hypothesis. Therefore, there arent significant relationship between the randomization and how the patients self identify their health status. 
+
+
+
+b)
+```{r}
+health_data3 <- health_data %>% 
+    group_by(ID) %>% 
+    mutate(baseline = HEALTH[TIME == "1"],
+           TIME = case_match(TIME,
+                             2 ~ 3,
+                             3 ~ 6,
+                             4 ~ 12)) %>% ungroup(ID) %>% subset(TIME > "1")
+health_data3$nstat <- as.numeric(health_data3$HEALTH == "Good")
+gee_model <- gee(formula = nstat ~ baseline + TXT + TIME + AGEGROUP,
+                    data = health_data3, 
+                    id = ID, 
+                    family = binomial,
+                    corstr = "unstructured",scale.fix = T,scale.value = 1)
+summary(gee_model)
+
+```
+# Without randomization, based on the model, the odds ratio of self rating as good and the baseline as good compared with poor baseline is estimated as 1.814. And the odds ratio of having self rating as good for those in the treatment group compared with those in the control group is estimaated as 2.10225. The odds ratio of having self rating for every unit increase in after randomization month is 0.03243. And the odds ratio of having self rating as good for those who are in the age group of 25-34 compared with those in the age group of 15-24 is estimated as 1.3525. Finally, the odds ratio of having self rating as good for those who are in the age group of 35 and older compared with those in the age group of 15-24 is estimated as 1.42052.
+
+
+
+c)
+```{r}
+library(lme4)
+library(Matrix)
+library(nlme)
+GLMEM <- glmer(nstat ~ baseline + TXT + TIME + AGEGROUP + (1|ID),
+               data = health_data3, 
+               family = binomial)
+summary(GLMEM)
+```
+# The odds ratio of having self rating for every unit increase in after randomization month is 0.03718 for the same subject. The main difference for the two models we made in (B) and (C) is that for this linear mixed model mainly focus on the  individual level, but the GEE model made in question 2 are mainly focus on the population mean.
